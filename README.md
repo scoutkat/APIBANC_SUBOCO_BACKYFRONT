@@ -104,3 +104,161 @@ npm run start -- --port 4300
   - `docker ps`, `docker logs banco-inc-mongo`
 - Angular SSR fetch warning:
   - Agregar `withFetch()` a `provideHttpClient()` en `frontend/src/app/app.config.ts`
+
+## MongoDB desde cero (Docker)
+Si no tienes MongoDB corriendo o quieres iniciar limpio, ejecuta:
+```bash
+# 0) (Opcional) Eliminar contenedor previo si existiera
+docker rm -f banco-inc-mongo 2>/dev/null || true
+
+# 1) Crear volumen persistente (datos sobreviven reinicios)
+docker volume create banco-inc-mongo-data
+
+# 2) Descargar e iniciar Mongo 6.0 en puerto 27017
+docker pull mongo:6.0
+docker run -d \
+  --name banco-inc-mongo \
+  -p 27017:27017 \
+  -v banco-inc-mongo-data:/data/db \
+  mongo:6.0
+
+# 3) Verificar que esté arriba
+docker ps
+# Logs (opcional):
+docker logs -f banco-inc-mongo
+```
+Notas:
+- Para reiniciar más adelante: `docker start banco-inc-mongo` / `docker stop banco-inc-mongo`.
+- Si cambias el puerto, ajusta `MONGODB_URI` en `backend/.env`.
+
+## MongoDB con Docker Compose
+Si prefieres usar Docker Compose en lugar de `docker run` directo:
+
+1) Crea `backend/docker-compose.yml` (si no existe) con este contenido mínimo:
+```yaml
+services:
+  mongodb:
+    image: mongo:6.0
+    container_name: banco-inc-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - banco-inc-mongo-data:/data/db
+volumes:
+  banco-inc-mongo-data:
+```
+
+2) Levantar solo MongoDB con Compose:
+```bash
+cd backend
+# Iniciar MongoDB
+docker compose up -d mongodb
+# Ver estado
+docker compose ps
+# Ver logs
+docker compose logs -f mongodb
+```
+
+3) Parar y borrar (opcional):
+```bash
+docker compose stop mongodb
+docker compose rm -f mongodb
+```
+
+Nota: Ajusta `MONGODB_URI=mongodb://localhost:27017/banco_inc_cards` en `backend/.env` si usas el puerto por defecto 27017.
+
+## Estructura del proyecto: ¿mismo repo o separados?
+Puedes trabajar de dos formas, ambas válidas:
+
+- Misma carpeta (Monorepo) [RECOMENDADO]
+  - Estructura:
+    - `backend/` → API Node/Express
+    - `frontend/` → App Angular
+  - Ventajas: un solo remoto Git, versiones coordinadas, onboarding simple.
+
+- Repos separados (dos remotos)
+  - `repo-backend` y `repo-frontend` independientes
+  - Ventajas: ciclos de release separados, permisos por equipo.
+
+Este README asume monorepo con `backend/` y `frontend/` en la misma raíz.
+
+## Cómo correr ambos servicios a la vez (monorepo)
+Abre dos terminales:
+
+- Terminal 1 (Mongo + Backend):
+```bash
+# En la raíz del repo
+cd backend
+# 1) Asegura Mongo (Docker Compose o docker run)
+docker compose up -d mongodb  # si usas backend/docker-compose.yml
+# o: docker start banco-inc-mongo || docker run -d --name banco-inc-mongo -p 27017:27017 mongo:6.0
+
+# 2) Levanta el backend (local)
+npm install
+npm run dev  # http://localhost:3000/health
+```
+
+- Terminal 2 (Frontend):
+```bash
+cd frontend
+npm install
+npm run start -- --port 4300  # http://localhost:4300
+```
+
+## Correr ambos solo con Docker Compose (opcional)
+Si quieres orquestar todo con Compose, puedes crear `docker-compose.yml` en la raíz con algo similar:
+```yaml
+services:
+  mongodb:
+    image: mongo:6.0
+    ports: ["27017:27017"]
+    volumes:
+      - banco-inc-mongo-data:/data/db
+
+  backend:
+    build: ./backend
+    depends_on: [mongodb]
+    env_file: ./backend/.env
+    ports: ["3000:3000"]
+
+  # Para frontend sirviendo build estático (requiere Dockerfile que haga build y exponga 80)
+  frontend:
+    build: ./frontend
+    depends_on: [backend]
+    ports: ["4300:80"]
+
+volumes:
+  banco-inc-mongo-data:
+```
+Comandos:
+```bash
+# En la raíz del repo
+docker compose up -d mongodb backend  # backend (y la DB)
+# y si tu Dockerfile del frontend sirve en 80
+docker compose up -d frontend
+
+# Ver estado
+docker compose ps
+# Logs
+docker compose logs -f backend
+```
+
+## ¿Y si usas repos separados?
+- Clona ambos en carpetas hermanas, por ejemplo:
+  - `D:/proyectos/banco/backend`
+  - `D:/proyectos/banco/frontend`
+- Levanta MongoDB como arriba (Docker / Compose)
+- Ejecuta backend y frontend en sus propias terminales (igual que en monorepo). Asegúrate de que el frontend apunte a `http://localhost:3000` en sus servicios/API.
+
+## Instalación de dependencias (importante)
+Ejecuta la instalación dentro de cada carpeta del proyecto:
+```bash
+# Backend (desde la raíz del repo)
+cd backend
+npm install
+
+# Frontend (en otra terminal o luego)
+cd ../frontend
+npm install
+```
+Nota: No ejecutes `npm install` en la raíz del monorepo; hazlo dentro de `backend/` y de `frontend/` por separado.
