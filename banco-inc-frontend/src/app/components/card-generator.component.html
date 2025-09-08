@@ -1,0 +1,175 @@
+<div class="card-generator-container">
+  <h2>🏦 Banco Inc - Generador de Tarjetas</h2>
+
+  <!-- Sección 1: Generar Número de Tarjeta -->
+  <div class="section">
+    <h3>1. Generar Número de Tarjeta</h3>
+    <div class="form-group">
+      <label for="productId">ID del Producto (6 dígitos):</label>
+      <input
+        type="text"
+        id="productId"
+        [(ngModel)]="productId"
+        placeholder="Ej: 102030"
+        maxlength="6"
+        class="form-control"
+        [class.error]="productIdError"
+      >
+      <small class="error-message" *ngIf="productIdError">{{ productIdError }}</small>
+    </div>
+    <button
+      (click)="generateCardNumber()"
+      [disabled]="isGenerating || !productId"
+      class="btn btn-primary"
+    >
+      {{ isGenerating ? 'Generando...' : 'Generar Número' }}
+    </button>
+
+    <div *ngIf="generatedCardNumber" class="result success">
+      <h4>✅ Número Generado Exitosamente</h4>
+      <p><strong>Product ID:</strong> {{ generatedCardNumber.data.productId }}</p>
+      <p><strong>Número de Tarjeta:</strong> {{ generatedCardNumber.data.numeroTarjeta }}</p>
+      <p><strong>Timestamp:</strong> {{ generatedCardNumber.data.timestamp | date:'medium' }}</p>
+    </div>
+  </div>
+
+  <!-- Sección 2: Activar Tarjeta -->
+  <div class="section" *ngIf="generatedCardNumber">
+    <h3>2. Activar Tarjeta</h3>
+    <div class="form-group">
+      <label for="cardNumber">Número de Tarjeta:</label>
+      <input
+        type="text"
+        id="cardNumber"
+        [(ngModel)]="cardNumber"
+        placeholder="16 dígitos"
+        maxlength="16"
+        class="form-control"
+        [class.error]="cardNumberError"
+      >
+      <small class="error-message" *ngIf="cardNumberError">{{ cardNumberError }}</small>
+    </div>
+    <div class="form-group">
+      <label for="cardholderName">Nombre del Titular:</label>
+      <input
+        type="text"
+        id="cardholderName"
+        [(ngModel)]="cardholderName"
+        placeholder="Ej: Juan Pérez"
+        class="form-control"
+        [class.error]="cardholderNameError"
+      >
+      <small class="error-message" *ngIf="cardholderNameError">{{ cardholderNameError }}</small>
+    </div>
+    <button
+      (click)="enrollCard()"
+      [disabled]="isEnrolling || !cardNumber || !cardholderName"
+      class="btn btn-success"
+    >
+      {{ isEnrolling ? 'Activando...' : 'Activar Tarjeta' }}
+    </button>
+
+    <div *ngIf="enrolledCard" class="result success">
+      <h4>✅ Tarjeta Activada Exitosamente</h4>
+      <p><strong>Card ID:</strong> {{ enrolledCard.data.cardId }}</p>
+      <p><strong>Product ID:</strong> {{ enrolledCard.data.productId }}</p>
+      <p><strong>Titular:</strong> {{ enrolledCard.data.nombreTitular }}</p>
+      <p><strong>Vencimiento:</strong> {{ enrolledCard.data.fechaVencimiento }}</p>
+      <p><strong>Estado:</strong> {{ enrolledCard.data.activa ? 'Activa' : 'Inactiva' }}</p>
+      <p><strong>Saldo:</strong> ${{ enrolledCard.data.saldo }} {{ enrolledCard.data.moneda }}</p>
+      <p><strong>Fecha Activación:</strong> {{ enrolledCard.data.fechaActivacion | date:'medium' }}</p>
+    </div>
+  </div>
+
+  <!-- Sección 3: Acciones Adicionales -->
+  <div class="section" *ngIf="enrolledCard">
+    <h3>3. Acciones Adicionales</h3>
+    <div class="action-buttons">
+      <button
+        (click)="getCardInfo()"
+        [disabled]="isGettingInfo"
+        class="btn btn-info"
+      >
+        {{ isGettingInfo ? 'Obteniendo...' : 'Ver Información' }}
+      </button>
+      <button
+        (click)="blockCard()"
+        [disabled]="isBlocking"
+        class="btn btn-danger"
+      >
+        {{ isBlocking ? 'Bloqueando...' : 'Bloquear Tarjeta' }}
+      </button>
+      <button
+        (click)="checkServerHealth()"
+        [disabled]="isCheckingHealth"
+        class="btn btn-secondary"
+      >
+        {{ isCheckingHealth ? 'Verificando...' : 'Verificar Servidor' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Sección 4: Listado de Tarjetas -->
+  <div class="section">
+    <h3>4. Listado de Tarjetas</h3>
+    <div class="action-buttons">
+      <button (click)="loadCards()" [disabled]="isListing" class="btn btn-primary">
+        {{ isListing ? 'Cargando...' : 'Refrescar Lista' }}
+      </button>
+    </div>
+
+    <div *ngIf="listError" class="result error">
+      {{ listError }}
+    </div>
+
+    <div *ngIf="cards && cards.length > 0; else noCards">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Card ID</th>
+            <th>Product ID</th>
+            <th>Número</th>
+            <th>Titular</th>
+            <th>Activa</th>
+            <th>Bloqueada</th>
+            <th>Saldo</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let c of cards">
+            <td>{{ c.cardId || c._id }}</td>
+            <td>{{ c.productId }}</td>
+            <td>{{ c.numeroTarjeta }}</td>
+            <td>{{ c.nombreTitular }}</td>
+            <td>{{ c.activa ? 'Sí' : 'No' }}</td>
+            <td>{{ c.bloqueada ? 'Sí' : 'No' }}</td>
+            <td>{{ c.saldo }} {{ c.moneda }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <ng-template #noCards>
+      <p>No hay tarjetas para mostrar. Haz clic en "Refrescar Lista".</p>
+    </ng-template>
+  </div>
+
+  <!-- Sección de Logs -->
+  <div class="section">
+    <h3>📋 Logs del Navegador</h3>
+    <div class="logs-info">
+      <p>💡 <strong>Instrucciones:</strong></p>
+      <ol>
+        <li>Abre las <strong>Herramientas de Desarrollador</strong> (F12)</li>
+        <li>Ve a la pestaña <strong>Console</strong></li>
+        <li>Realiza las acciones arriba y observa los logs detallados</li>
+      </ol>
+      <p>🔍 <strong>Logs disponibles:</strong></p>
+      <ul>
+        <li>✅ Respuestas exitosas del servidor</li>
+        <li>❌ Errores detallados</li>
+        <li>🔄 Estados de las peticiones</li>
+        <li>📊 Datos completos de las respuestas</li>
+      </ul>
+    </div>
+  </div>
+</div>
